@@ -1,3 +1,5 @@
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.HashMap;
 
 public class Simulator {
@@ -22,6 +24,12 @@ public class Simulator {
         instructionMapping = new HashMap<>();
         // reading text file
         // instantiate Parser with text file (lines[], instructionMemory)
+        try {
+            Parser p = new Parser(filePath, instructionMemory, instructionMapping);
+            numOfInstructions = p.getLinesCount();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static void fetch() {
