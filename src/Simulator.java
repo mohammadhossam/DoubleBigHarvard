@@ -34,6 +34,44 @@ public class Simulator {
 
     public static void execute() {
 
+        byte opCode = decodedInstruction.get("OPCODE");
+        byte srcRegister1 = decodedInstruction.get("R1");
+
+        if (decodedInstruction.containsKey("R2")) {
+            //I have an R-Instruction
+            byte srcRegister2 = decodedInstruction.get("R2");
+            switch (opCode) {
+                case 0: //ADD
+                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] + registerFile[srcRegister2]);
+                    break;
+                case 1: //SUB
+                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] - registerFile[srcRegister2]);
+                    break;
+                case 2: //MUL
+                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] * registerFile[srcRegister2]);
+                    break;
+                case 5: //AND
+                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] & registerFile[srcRegister2]);
+                    break;
+
+            }
+            registerUpdated = true;
+            changedReg = srcRegister1;
+
+        } else {
+            //I have an I-Instruction
+            byte IMM = decodedInstruction.get("IMMEDIATE");
+            switch (opCode) {
+                case 3: //LDI
+                    registerFile[srcRegister1] = IMM;
+                    break;
+                case 4: //BEQZ
+                    pc = srcRegister1 == 0 ? pc += IMM : pc;
+                    break;
+            }
+
+        }
+
     }
 
     public static void main(String[] args) {
