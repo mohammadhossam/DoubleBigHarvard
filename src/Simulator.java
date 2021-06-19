@@ -48,23 +48,47 @@ public class Simulator {
         if (decodedInstruction.containsKey("R2")) {
             //I have an R-Instruction
             byte srcRegister2 = decodedInstruction.get("R2");
+            registerUpdated = true;
+            changedReg = srcRegister1;
+            //In jump instruction set the flag to false
+            int result = 0;
             switch (opCode) {
                 case 0: //ADD
-                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] + registerFile[srcRegister2]);
+                    result = (registerFile[srcRegister1] + registerFile[srcRegister2]);
+
+                    if ((registerFile[srcRegister1] > 0 && registerFile[srcRegister2] > 0 & ((byte) result) < 0)
+                            || (registerFile[srcRegister1] < 0 && registerFile[srcRegister2] < 0 & ((byte) result) > 0))
+                        statusReg |= 1 << 3; //for Overflow flag
+
+                    registerFile[srcRegister1] = (byte) result;
                     break;
+
                 case 1: //SUB
-                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] - registerFile[srcRegister2]);
+                    result = (registerFile[srcRegister1] - registerFile[srcRegister2]);
+                    if ((registerFile[srcRegister1] > 0 && registerFile[srcRegister2] < 0 & ((byte) result) < 0)
+                            || (registerFile[srcRegister1] < 0 && registerFile[srcRegister2] > 0 & ((byte) result) > 0))
+                        statusReg |= 1 << 3; //for Overflow flag
+
+                    registerFile[srcRegister1] = (byte) result;
                     break;
+
                 case 2: //MUL
-                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] * registerFile[srcRegister2]);
+                    result = (registerFile[srcRegister1] * registerFile[srcRegister2]);
+                    registerFile[srcRegister1] = (byte) result;
                     break;
                 case 5: //AND
                     registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] & registerFile[srcRegister2]);
                     break;
 
             }
-            registerUpdated = true;
-            changedReg = srcRegister1;
+            if (result > Byte.MAX_VALUE) //for carry flag
+                statusReg |= 1 << 4;
+            if (registerFile[srcRegister1] < 0)
+                statusReg |= 1 << 2; //for Negative flag
+            if (registerFile[srcRegister1] == 0)
+                statusReg |= 1; //for Zero flag
+            if (opCode == 0 || opCode == 1) //only in ADD and SUB
+                statusReg |= (statusReg >> 2 ^ statusReg >> 3) << 1; //for Sign flag
 
         } else {
             //I have an I-Instruction
@@ -72,6 +96,8 @@ public class Simulator {
             switch (opCode) {
                 case 3: //LDI
                     registerFile[srcRegister1] = IMM;
+                    registerUpdated = true;
+                    changedReg = srcRegister1;
                     break;
                 case 4: //BEQZ
                     pc = srcRegister1 == 0 ? pc += IMM : pc;
