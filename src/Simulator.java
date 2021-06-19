@@ -87,8 +87,9 @@ public class Simulator {
                 statusReg |= 1 << 2; //for Negative flag
             if (registerFile[srcRegister1] == 0)
                 statusReg |= 1; //for Zero flag
-            if (opCode == 0 || opCode == 1) //only in ADD and SUB
-                statusReg |= (statusReg >> 2 ^ statusReg >> 3) << 1; //for Sign flag
+            if (opCode == 0 || opCode == 1)  //only in ADD and SUB
+                statusReg |= ((statusReg >> 2 & 1) ^ (statusReg >> 3 & 1)) << 1; //for Sign flag
+
 
         } else {
             //I have an I-Instruction
