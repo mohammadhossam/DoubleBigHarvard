@@ -143,7 +143,7 @@ public class Simulator {
             }
             System.out.println();
             if (registerUpdated) {
-                System.out.println("Register R" + (changedReg + 1) + " has been changed. New value: "
+                System.out.println("Register R" + (changedReg) + " has been changed. New value: "
                         + registerFile[changedReg] + ".");
             }
             System.out.println();
