@@ -6,38 +6,99 @@ public class Simulator {
     static byte[] dataMemory, registerFile;
     static short pc;
     static byte statusReg;
-    static int clockCycle;
+    static int clockCycle, numOfInstructions, changedReg, changedMem;
 
     static short fetched, toBeDecoded, toBeExecuted;
-    static boolean decodeFlag, executeFlag;
+    static boolean decodeFlag, executeFlag, registerUpdated, memoryUpdated;
 
     static HashMap<String, Byte> decodedInstruction;
+    static HashMap<Short, String> instructionMapping;
 
-    public Simulator(String filePath){
+    public Simulator(String filePath) {
         instructionMemory = new short[1024];
         dataMemory = new byte[2048];
         registerFile = new byte[64];
         decodedInstruction = new HashMap<>();
-
+        instructionMapping = new HashMap<>();
         // reading text file
         // instantiate Parser with text file (lines[], instructionMemory)
     }
 
-    public static void fetch(){
+    public static void fetch() {
 
     }
 
-    public static void decode(){
+    public static void decode() {
 
     }
 
-    public static void execute(){
+    public static void execute() {
 
     }
 
     public static void main(String[] args) {
-        // new Simulator
-        // handling printings and clock cycle increment
+        String filePath = "";
+        Simulator simulator = new Simulator(filePath);
+
+        clockCycle = 1;
+        while ((numOfInstructions--) + 2 > 0) {
+            System.out.println("Current Clock Cycle: " + clockCycle + ".");
+            System.out.println();
+            fetch();
+            System.out.println("The instruction being fetched: " + instructionMapping.get(fetched) + ".");
+            System.out.println();
+            System.out.print("The instruction being decoded: ");
+            if (decodeFlag) {
+                decode();
+                System.out.println(instructionMapping.get(toBeDecoded) + ".");
+                System.out.println("Inputs for decode stage:\n\t Instruction in decimal: " + toBeDecoded);
+            } else {
+                System.out.println("None.");
+            }
+            System.out.println();
+            System.out.print("The instruction being executed: ");
+            if (executeFlag) {
+                execute();
+                System.out.println(instructionMapping.get(toBeExecuted) + ".");
+                System.out.println("Inputs for execute stage:\n\t Opcode: "
+                        + decodedInstruction.get("OPCODE") + "\n\t R1: "
+                        + decodedInstruction.get("R1") + "\n\t "
+                        + (decodedInstruction.containsKey("R2") ?
+                        "R2: " + decodedInstruction.get("R2")
+                        : "Immediate: " + decodedInstruction.get("IMMEDIATE")));
+            } else {
+                System.out.println("None.");
+            }
+            System.out.println();
+            if (registerUpdated) {
+                System.out.println("Register R" + (changedReg + 1) + " has been changed. New value: "
+                        + registerFile[changedReg] + ".");
+            }
+            System.out.println();
+            if (memoryUpdated) {
+                System.out.println("Memory[" + (changedMem) + "] has been changed. New value: "
+                        + dataMemory[changedMem] + ".");
+            }
+            clockCycle++;
+            System.out.println("-----------------------------------------------------------------------");
+        }
+
+        System.out.println("Contents of register file: ");
+        for (int i = 0; i < registerFile.length; i++) {
+            System.out.println("R" + (i + 1) + ": " + registerFile[i]);
+        }
+        System.out.println();
+
+        System.out.println("Contents of instruction memory: ");
+        for (int i = 0; i < instructionMemory.length; i++) {
+            System.out.println("InstructionMemory[" + i + "]: " + instructionMemory[i]);
+        }
+        System.out.println();
+
+        System.out.println("Contents of data memory: ");
+        for (int i = 0; i < dataMemory.length; i++) {
+            System.out.println("DataMemory[" + i + "]: " + dataMemory[i]);
+        }
     }
 
 }
