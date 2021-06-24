@@ -80,9 +80,7 @@ public class Parser {
 
             instruction = setInstruction(opCode, arg1, arg2);
             instructionMemory[linesCount++] = instruction;
-            instructionMapping.put(instruction, tokens[0]);
-
-            System.out.println(getBinary(instruction));
+            instructionMapping.put(instruction, curLine);
         }
 
     }
@@ -111,9 +109,4 @@ public class Parser {
         return instruction;
     }
 
-
-    public static void main(String[] args) throws Exception {
-        Parser p = new Parser("ins",new short[5],new HashMap<>());
-
-    }
 }

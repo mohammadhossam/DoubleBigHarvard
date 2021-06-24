@@ -11,9 +11,9 @@ public class Simulator {
     static int clockCycle, numOfInstructions, changedReg, changedMem;
 
     static short fetched, toBeDecoded, toBeExecuted;
-    static boolean decodeFlag, executeFlag, registerUpdated, memoryUpdated;
+    static boolean decodeFlag, executeFlag, registerUpdated, memoryUpdated, fetchFlag;
 
-    static HashMap<String, Byte> decodedInstruction;
+    static HashMap<String, Byte> decodedInstruction, toBeExecutedHashMap;
     static HashMap<Short, String> instructionMapping;
 
     public Simulator(String filePath) {
@@ -33,21 +33,32 @@ public class Simulator {
     }
 
     public static void fetch() {
-
+        fetched = instructionMemory[pc];
+        pc++;
     }
 
     public static void decode() {
-
+        byte opcode = (byte) ((toBeDecoded & 0b1111000000000000) >> 12);
+        byte r1 = (byte) ((toBeDecoded & 0b0000011111000000) >> 6);
+        byte r2 = (byte) (toBeDecoded & 0b0000000000111111);
+        byte immediate = (byte) (toBeDecoded & 0b0000000000111111);
+        decodedInstruction.clear();
+        decodedInstruction.put("OPCODE", opcode);
+        decodedInstruction.put("R1", r1);
+        if (opcode == 0 || opcode == 1 || opcode == 2 || opcode == 5 || opcode == 6 || opcode == 7)
+            decodedInstruction.put("R2", r2);
+        else
+            decodedInstruction.put("IMMEDIATE", immediate);
     }
 
     public static void execute() {
 
-        byte opCode = decodedInstruction.get("OPCODE");
-        byte srcRegister1 = decodedInstruction.get("R1");
+        byte opCode = toBeExecutedHashMap.get("OPCODE");
+        byte srcRegister1 = toBeExecutedHashMap.get("R1");
 
-        if (decodedInstruction.containsKey("R2")) {
+        if (toBeExecutedHashMap.containsKey("R2")) {
             //I have an R-Instruction
-            byte srcRegister2 = decodedInstruction.get("R2");
+            byte srcRegister2 = toBeExecutedHashMap.get("R2");
             registerUpdated = true;
             changedReg = srcRegister1;
             //In jump instruction set the flag to false
@@ -97,7 +108,7 @@ public class Simulator {
                 statusReg |= ((statusReg >> 2 & 1) ^ (statusReg >> 3 & 1)) << 1; //for Sign flag
         } else {
             //I have an I-Instruction
-            byte IMM = decodedInstruction.get("IMMEDIATE");
+            byte IMM = toBeExecutedHashMap.get("IMMEDIATE");
             switch (opCode) {
                 case 3: //LDI
                     registerFile[srcRegister1] = IMM;
@@ -131,16 +142,36 @@ public class Simulator {
     }
 
     public static void main(String[] args) {
-        String filePath = "";
+        String filePath = "ins";
         Simulator simulator = new Simulator(filePath);
-
+        fetchFlag = true;
         clockCycle = 1;
-        while ((numOfInstructions--) + 2 > 0) {
+        for (int i = 0; i < numOfInstructions + 2; i++) {
+            if (i != 0) {
+                decodeFlag = true;
+                if (i != 1) {
+                    executeFlag = true;
+                }
+            }
+            if (i >= numOfInstructions) {
+                fetchFlag = false;
+                if (i >= numOfInstructions + 1) {
+                    decodeFlag = false;
+                }
+            }
             System.out.println("Current Clock Cycle: " + clockCycle + ".");
             System.out.println();
-            fetch();
-            System.out.println("The instruction being fetched: " + instructionMapping.get(fetched) + ".");
+
+            System.out.print("The instruction being fetched: ");
+            if (fetchFlag) {
+                fetch();
+                System.out.println(instructionMapping.get(fetched) + ".");
+            } else {
+                System.out.println("None.");
+            }
             System.out.println();
+
+            toBeExecutedHashMap = new HashMap<>(decodedInstruction);
             System.out.print("The instruction being decoded: ");
             if (decodeFlag) {
                 decode();
@@ -150,22 +181,27 @@ public class Simulator {
                 System.out.println("None.");
             }
             System.out.println();
+
             System.out.print("The instruction being executed: ");
             if (executeFlag) {
                 execute();
                 System.out.println(instructionMapping.get(toBeExecuted) + ".");
-                System.out.println("Inputs for execute stage:\n\t Opcode: "
-                        + decodedInstruction.get("OPCODE") + "\n\t R1: "
-                        + decodedInstruction.get("R1") + "\n\t "
-                        + (decodedInstruction.containsKey("R2") ?
-                        "R2: " + decodedInstruction.get("R2")
-                        : "Immediate: " + decodedInstruction.get("IMMEDIATE")));
+                System.out.println("Inputs for execute stage:\n\t OPCODE: "
+                        + toBeExecutedHashMap.get("OPCODE") + "\n\t R1: "
+                        + toBeExecutedHashMap.get("R1") + "\n\t "
+                        + (toBeExecutedHashMap.containsKey("R2") ?
+                        "R2: " + toBeExecutedHashMap.get("R2")
+                        : "IMM: " + toBeExecutedHashMap.get("IMMEDIATE")));
             } else {
                 System.out.println("None.");
             }
             System.out.println();
+
+            toBeExecuted = toBeDecoded;
+            toBeDecoded = fetched;
+
             if (registerUpdated) {
-                System.out.println("Register R" + (changedReg + 1) + " has been changed. New value: "
+                System.out.println("Register R" + (changedReg) + " has been changed. New value: "
                         + registerFile[changedReg] + ".");
             }
             System.out.println();
