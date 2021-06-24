@@ -56,7 +56,7 @@ public class Simulator {
                 case 0: //ADD
                     result = (registerFile[srcRegister1] + registerFile[srcRegister2]);
 
-                    if (overFlowOccured(registerFile[srcRegister1],registerFile[srcRegister2],result))
+                    if (overFlowOccured(registerFile[srcRegister1], registerFile[srcRegister2], result))
                         statusReg |= 1 << 3; //for Overflow flag
 
                     registerFile[srcRegister1] = (byte) result;
@@ -64,7 +64,7 @@ public class Simulator {
 
                 case 1: //SUB
                     result = (registerFile[srcRegister1] - registerFile[srcRegister2]);
-                    if (overFlowOccured(registerFile[srcRegister1],registerFile[srcRegister2],result))
+                    if (overFlowOccured(registerFile[srcRegister1], registerFile[srcRegister2], result))
                         statusReg |= 1 << 3; //for Overflow flag
 
                     registerFile[srcRegister1] = (byte) result;
@@ -78,13 +78,13 @@ public class Simulator {
                     registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] & registerFile[srcRegister2]);
                     break;
                 case 6://OR
-                    registerFile[srcRegister1]=(byte)(registerFile[srcRegister1]|registerFile[srcRegister2]);
+                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] | registerFile[srcRegister2]);
                     break;
                 case 7://concatenation
-                    result=(byte) ((registerFile[srcRegister1]<<4)|registerFile[srcRegister2]);
-                    if (overFlowOccured(registerFile[srcRegister1],registerFile[srcRegister2],result))
+                    result = (byte) ((registerFile[srcRegister1] << 4) | registerFile[srcRegister2]);
+                    if (overFlowOccured(registerFile[srcRegister1], registerFile[srcRegister2], result))
                         statusReg |= 1 << 3; //for Overflow flag
-                    registerFile[srcRegister1]= (byte) result;
+                    registerFile[srcRegister1] = (byte) result;
                     break;
             }
             if (result > Byte.MAX_VALUE) //for carry flag
@@ -108,16 +108,16 @@ public class Simulator {
                     pc = srcRegister1 == 0 ? pc += IMM : pc;
                     break;
                 case 8://SLC
-                    registerFile[srcRegister1]=(byte) (registerFile[srcRegister1]<<IMM|registerFile[srcRegister1]>>>(8-IMM));
+                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] << IMM | registerFile[srcRegister1] >>> (8 - IMM));
                     break;
                 case 9://SRC
-                    registerFile[srcRegister1]=(byte) (registerFile[srcRegister1]>>>IMM|registerFile[srcRegister1]<<(8-IMM));
+                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] >>> IMM | registerFile[srcRegister1] << (8 - IMM));
                     break;
                 case 10://LB
-                    registerFile[srcRegister1]=dataMemory[IMM];
+                    registerFile[srcRegister1] = dataMemory[IMM];
                     break;
                 case 11://SB
-                    dataMemory[IMM]=registerFile[srcRegister1];
+                    dataMemory[IMM] = registerFile[srcRegister1];
                     break;
             }
 
@@ -125,9 +125,9 @@ public class Simulator {
 
     }
 
-    private static boolean overFlowOccured(byte R1,byte R2, int result) {
-        return (R1> 0 && R2> 0 & ((byte) result) < 0)
-                || (R1< 0 && R2 < 0 & ((byte) result) > 0);
+    private static boolean overFlowOccured(byte R1, byte R2, int result) {
+        return (R1 > 0 && R2 > 0 & ((byte) result) < 0)
+                || (R1 < 0 && R2 < 0 & ((byte) result) > 0);
     }
 
     public static void main(String[] args) {
