@@ -8,10 +8,10 @@ public class Simulator {
     static byte[] dataMemory, registerFile;
     static short pc;
     static byte statusReg;
-    static int clockCycle, numOfInstructions, changedReg, changedMem;
+    static int numOfInstructions, changedReg, changedMem;
 
     static short fetched, toBeDecoded, toBeExecuted;
-    static boolean decodeFlag, executeFlag, registerUpdated, memoryUpdated, fetchFlag;
+    static boolean registerUpdated, memoryUpdated, pcChanged;
 
     static HashMap<String, Byte> decodedInstruction, toBeExecutedHashMap;
     static HashMap<Short, String> instructionMapping;
@@ -39,7 +39,7 @@ public class Simulator {
 
     public static void decode() {
         byte opcode = (byte) ((toBeDecoded & 0b1111000000000000) >> 12);
-        byte r1 = (byte) ((toBeDecoded & 0b0000011111000000) >> 6);
+        byte r1 = (byte) ((toBeDecoded & 0b0000111111000000) >> 6);
         byte r2 = (byte) (toBeDecoded & 0b0000000000111111);
         byte immediate = (byte) (toBeDecoded & 0b0000000000111111);
         decodedInstruction.clear();
@@ -91,18 +91,20 @@ public class Simulator {
                 case 6://OR
                     registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] | registerFile[srcRegister2]);
                     break;
-                case 7://concatenation
-                    result = (byte) ((registerFile[srcRegister1] << 4) | registerFile[srcRegister2]);
+                case 7: //JR
+                    result = ((registerFile[srcRegister1] << 8) | registerFile[srcRegister2]);
                     if (overFlowOccured(registerFile[srcRegister1], registerFile[srcRegister2], result))
                         statusReg |= 1 << 3; //for Overflow flag
-                    registerFile[srcRegister1] = (byte) result;
+                    pc = (short) result;
+                    pcChanged = true;
+                    registerUpdated = false;
                     break;
             }
-            if (result > Byte.MAX_VALUE) //for carry flag
+            if (result > Byte.MAX_VALUE && opCode != 7) //for carry flag
                 statusReg |= 1 << 4;
-            if (registerFile[srcRegister1] < 0)
+            if (registerFile[srcRegister1] < 0 && opCode != 7)
                 statusReg |= 1 << 2; //for Negative flag
-            if (registerFile[srcRegister1] == 0)
+            if (registerFile[srcRegister1] == 0 && opCode != 7)
                 statusReg |= 1; //for Zero flag
             if (opCode == 0 || opCode == 1)  //only in ADD and SUB
                 statusReg |= ((statusReg >> 2 & 1) ^ (statusReg >> 3 & 1)) << 1; //for Sign flag
@@ -116,7 +118,9 @@ public class Simulator {
                     changedReg = srcRegister1;
                     break;
                 case 4: //BEQZ
-                    pc = srcRegister1 == 0 ? pc += IMM : pc;
+                    pc -= registerFile[srcRegister1] == 0 ? 3 : 0;
+                    pc += registerFile[srcRegister1] == 0 ? IMM + 1 : 0;
+                    pcChanged = registerFile[srcRegister1] == 0;
                     break;
                 case 8://SLC
                     registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] << IMM | registerFile[srcRegister1] >>> (8 - IMM));
@@ -144,18 +148,19 @@ public class Simulator {
     public static void main(String[] args) {
         String filePath = "ins";
         Simulator simulator = new Simulator(filePath);
-        fetchFlag = true;
-        clockCycle = 1;
-        for (int i = 0; i < numOfInstructions + 2; i++) {
-            if (i != 0) {
+        boolean fetchFlag = true, decodeFlag = false, executeFlag = false;
+        int clockCycle = 1;
+        int loopLimit = numOfInstructions + 2;
+        for (int i = 0; i < loopLimit; i++) {
+            if (i > 0) {
                 decodeFlag = true;
-                if (i != 1) {
+                if (i > 1) {
                     executeFlag = true;
                 }
             }
-            if (i >= numOfInstructions) {
+            if (i >= loopLimit - 2) {
                 fetchFlag = false;
-                if (i >= numOfInstructions + 1) {
+                if (i >= loopLimit - 1) {
                     decodeFlag = false;
                 }
             }
@@ -172,6 +177,7 @@ public class Simulator {
             System.out.println();
 
             toBeExecutedHashMap = new HashMap<>(decodedInstruction);
+
             System.out.print("The instruction being decoded: ");
             if (decodeFlag) {
                 decode();
@@ -196,18 +202,27 @@ public class Simulator {
                 System.out.println("None.");
             }
             System.out.println();
-
+            if(pcChanged) {
+                i = -1;
+                loopLimit = (numOfInstructions - pc ) + 2; //BEQZ is not stable
+                decodeFlag = false;
+                executeFlag = false;
+                pcChanged = false;
+                System.out.println("PC = " + pc);
+            }
             toBeExecuted = toBeDecoded;
             toBeDecoded = fetched;
 
             if (registerUpdated) {
                 System.out.println("Register R" + (changedReg) + " has been changed. New value: "
                         + registerFile[changedReg] + ".");
+                registerUpdated = false;
             }
             System.out.println();
             if (memoryUpdated) {
                 System.out.println("Memory[" + (changedMem) + "] has been changed. New value: "
                         + dataMemory[changedMem] + ".");
+                memoryUpdated = false;
             }
             clockCycle++;
             System.out.println("-----------------------------------------------------------------------");
@@ -217,6 +232,8 @@ public class Simulator {
         for (int i = 0; i < registerFile.length; i++) {
             System.out.println("R" + (i + 1) + ": " + registerFile[i]);
         }
+        System.out.println("PC: " + pc);
+        System.out.println("SREG: " + statusReg);
         System.out.println();
 
         System.out.println("Contents of instruction memory: ");
