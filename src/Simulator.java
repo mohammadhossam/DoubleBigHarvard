@@ -269,7 +269,7 @@ public class Simulator {
             System.out.println("R" + (i) + ": " + registerFile[i]);
         }
         System.out.println("PC: " + pc);
-        System.out.println("SREG (in binary): " + Parser.getBinary(statusReg));
+        System.out.println("SREG (in binary): " + Parser.getBinary(statusReg).substring(8));
         System.out.println();
 
         System.out.println("Contents of instruction memory: ");
