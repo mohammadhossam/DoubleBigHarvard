@@ -21,58 +21,58 @@ public class Parser {
 
             short instruction;
 
-            short opCode;
-            short arg1 = Short.parseShort(tokens[1].substring(1));
-            short arg2;
+            byte opCode;
+            byte arg1 = Byte.parseByte(tokens[1].substring(1));
+            byte arg2;
 
             switch (opString) {
                 case "ADD":
                     opCode = 0;
-                    arg2 = Short.parseShort(tokens[2].substring(1));
+                    arg2 = Byte.parseByte(tokens[2].substring(1));
                     break;
                 case "SUB":
                     opCode = 1;
-                    arg2 = Short.parseShort(tokens[2].substring(1));
+                    arg2 = Byte.parseByte(tokens[2].substring(1));
                     break;
                 case "MUL":
                     opCode = 2;
-                    arg2 = Short.parseShort(tokens[2].substring(1));
+                    arg2 = Byte.parseByte(tokens[2].substring(1));
                     break;
                 case "LDI":
                     opCode = 3;
-                    arg2 = Short.parseShort(tokens[2]);
+                    arg2 = Byte.parseByte(tokens[2]);
                     break;
                 case "BEQZ":
                     opCode = 4;
-                    arg2 = Short.parseShort(tokens[2]);
+                    arg2 = Byte.parseByte(tokens[2]);
                     break;
                 case "AND":
                     opCode = 5;
-                    arg2 = Short.parseShort(tokens[2].substring(1));
+                    arg2 = Byte.parseByte(tokens[2].substring(1));
                     break;
                 case "OR":
                     opCode = 6;
-                    arg2 = Short.parseShort(tokens[2].substring(1));
+                    arg2 = Byte.parseByte(tokens[2].substring(1));
                     break;
                 case "JR":
                     opCode = 7;
-                    arg2 = Short.parseShort(tokens[2].substring(1));
+                    arg2 = Byte.parseByte(tokens[2].substring(1));
                     break;
                 case "SLC":
                     opCode = 8;
-                    arg2 = Short.parseShort(tokens[2]);
+                    arg2 = Byte.parseByte(tokens[2]);
                     break;
                 case "SRC":
                     opCode = 9;
-                    arg2 = Short.parseShort(tokens[2]);
+                    arg2 = Byte.parseByte(tokens[2]);
                     break;
                 case "LB":
                     opCode = 10;
-                    arg2 = Short.parseShort(tokens[2]);
+                    arg2 = Byte.parseByte(tokens[2]);
                     break;
                 case "SB":
                     opCode = 11;
-                    arg2 = Short.parseShort(tokens[2]);
+                    arg2 = Byte.parseByte(tokens[2]);
                     break;
                 default:
                     throw new Exception("Not Supported Instruction");
@@ -89,24 +89,28 @@ public class Parser {
         return linesCount;
     }
 
-    private String getBinary(short s) {
+     static String getBinary(short s) {
 
         String ans = "";
         for (short i = 0; i < 16; i++) {
-            ans = ((s&(1<<i)) == 0?"0":"1") + ans;
-            if(i == 5 || i == 11)
-                ans = " "+ans;
+            ans = ((s & (1 << i)) == 0 ? "0" : "1") + ans;
+//            if (i == 5 || i == 11)
+//                ans = " " + ans;
         }
         return ans;
     }
 
-    private short setInstruction(short opCode, short arg1, short arg2) {
+    private short setInstruction(byte opCode, byte arg1, byte arg2) {
         short instruction = 0;
         instruction |= (opCode << 12);
         instruction |= (arg1 << 6);
-        instruction |= arg2;
+        instruction |= (0b00111111 & arg2);
 
         return instruction;
+    }
+
+    public static void main(String[] args) {
+        System.out.println(getBinary((short) -33));
     }
 
 }

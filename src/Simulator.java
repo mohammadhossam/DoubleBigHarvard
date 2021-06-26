@@ -1,19 +1,17 @@
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.HashMap;
 
 public class Simulator {
 
     static short[] instructionMemory;
     static byte[] dataMemory, registerFile;
-    static short pc;
+    static short pc, pcOfExecuted;
     static byte statusReg;
     static int numOfInstructions, changedReg, changedMem;
 
     static short fetched, toBeDecoded, toBeExecuted;
     static boolean registerUpdated, memoryUpdated, pcChanged;
 
-    static HashMap<String, Byte> decodedInstruction, toBeExecutedHashMap;
+    static HashMap<String, Byte> decodedInstruction, toBeExecutedHashMap, decodedOperands, toBeExecutedOperands;
     static HashMap<Short, String> instructionMapping;
 
     public Simulator(String filePath) {
@@ -22,6 +20,8 @@ public class Simulator {
         registerFile = new byte[64];
         decodedInstruction = new HashMap<>();
         instructionMapping = new HashMap<>();
+        decodedOperands = new HashMap<>();
+        toBeExecutedOperands = new HashMap<>();
         // reading text file
         // instantiate Parser with text file (lines[], instructionMemory)
         try {
@@ -44,67 +44,77 @@ public class Simulator {
         byte immediate = (byte) (toBeDecoded & 0b0000000000111111);
         decodedInstruction.clear();
         decodedInstruction.put("OPCODE", opcode);
-        decodedInstruction.put("R1", r1);
-        if (opcode == 0 || opcode == 1 || opcode == 2 || opcode == 5 || opcode == 6 || opcode == 7)
-            decodedInstruction.put("R2", r2);
-        else
+        decodedInstruction.put("R1", registerFile[r1]);
+
+        decodedOperands.clear();
+        decodedOperands.put("R1", r1);
+
+        if (opcode == 0 || opcode == 1 || opcode == 2 || opcode == 5 || opcode == 6 || opcode == 7) {
+            decodedInstruction.put("R2", registerFile[r2]);
+            decodedOperands.put("R2", r2);
+        }
+        else {
+            if (opcode != 10 && opcode != 11){
+                immediate |= (((1 << 5) & immediate) != 0) ? (0b11000000) : 0;
+            }
             decodedInstruction.put("IMMEDIATE", immediate);
+        }
     }
 
     public static void execute() {
 
         byte opCode = toBeExecutedHashMap.get("OPCODE");
-        byte srcRegister1 = toBeExecutedHashMap.get("R1");
+        byte src1 = toBeExecutedHashMap.get("R1");
+        byte r1 = toBeExecutedOperands.get("R1");
 
         if (toBeExecutedHashMap.containsKey("R2")) {
             //I have an R-Instruction
-            byte srcRegister2 = toBeExecutedHashMap.get("R2");
+            byte src2 = toBeExecutedHashMap.get("R2");
             registerUpdated = true;
-            changedReg = srcRegister1;
+            changedReg = r1;
             //In jump instruction set the flag to false
             int result = 0;
             switch (opCode) {
                 case 0: //ADD
-                    result = (registerFile[srcRegister1] + registerFile[srcRegister2]);
-
-                    if (overFlowOccured(registerFile[srcRegister1], registerFile[srcRegister2], result))
+                    result = (src1 + src2);
+                    if (overFlowOccurred(src1, src2, result))
                         statusReg |= 1 << 3; //for Overflow flag
-
-                    registerFile[srcRegister1] = (byte) result;
+                    if(carryOccurred(src1, src2, (byte) result))
+                        statusReg |= 1 << 4;
+                    registerFile[r1] = (byte) result;
                     break;
 
                 case 1: //SUB
-                    result = (registerFile[srcRegister1] - registerFile[srcRegister2]);
-                    if (overFlowOccured(registerFile[srcRegister1], registerFile[srcRegister2], result))
+                    result = (src1 - src2);
+                    if (overFlowOccurred(src1, src2, result))
                         statusReg |= 1 << 3; //for Overflow flag
-
-                    registerFile[srcRegister1] = (byte) result;
+                    if(carryOccurred(src1, src2, (byte) result))
+                        statusReg |= 1 << 4;
+                    registerFile[r1] = (byte) result;
                     break;
 
                 case 2: //MUL
-                    result = (registerFile[srcRegister1] * registerFile[srcRegister2]);
-                    registerFile[srcRegister1] = (byte) result;
+                    result = (src1 * src2);
+                    if(carryOccurred(src1, src2, (byte) result))
+                        statusReg |= 1 << 4;
+                    registerFile[r1] = (byte) result;
                     break;
                 case 5: //AND
-                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] & registerFile[srcRegister2]);
+                    registerFile[r1] = (byte) (src1 & src2);
                     break;
                 case 6://OR
-                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] | registerFile[srcRegister2]);
+                    registerFile[r1] = (byte) (src1 | src2);
                     break;
                 case 7: //JR
-                    result = ((registerFile[srcRegister1] << 8) | registerFile[srcRegister2]);
-                    if (overFlowOccured(registerFile[srcRegister1], registerFile[srcRegister2], result))
-                        statusReg |= 1 << 3; //for Overflow flag
+                    result = ((src1 << 8) | src2);
                     pc = (short) result;
                     pcChanged = true;
                     registerUpdated = false;
                     break;
             }
-            if (result > Byte.MAX_VALUE && opCode != 7) //for carry flag
-                statusReg |= 1 << 4;
-            if (registerFile[srcRegister1] < 0 && opCode != 7)
+            if (registerFile[r1] < 0 && opCode != 7)
                 statusReg |= 1 << 2; //for Negative flag
-            if (registerFile[srcRegister1] == 0 && opCode != 7)
+            if (registerFile[r1] == 0 && opCode != 7)
                 statusReg |= 1; //for Zero flag
             if (opCode == 0 || opCode == 1)  //only in ADD and SUB
                 statusReg |= ((statusReg >> 2 & 1) ^ (statusReg >> 3 & 1)) << 1; //for Sign flag
@@ -113,36 +123,58 @@ public class Simulator {
             byte IMM = toBeExecutedHashMap.get("IMMEDIATE");
             switch (opCode) {
                 case 3: //LDI
-                    registerFile[srcRegister1] = IMM;
+                    registerFile[r1] = IMM;
                     registerUpdated = true;
-                    changedReg = srcRegister1;
+                    changedReg = r1;
                     break;
                 case 4: //BEQZ
-                    pc -= registerFile[srcRegister1] == 0 ? 3 : 0;
-                    pc += registerFile[srcRegister1] == 0 ? IMM + 1 : 0;
-                    pcChanged = registerFile[srcRegister1] == 0;
+                    pc = (short) (src1 == 0 ? pcOfExecuted + IMM + 1 : pc);
+                    pcOfExecuted = src1 == 0 ? (short) (pc - 1) : pcOfExecuted;
+                    pcChanged = src1 == 0;
                     break;
                 case 8://SLC
-                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] << IMM | registerFile[srcRegister1] >>> (8 - IMM));
+                    registerFile[r1] = (byte) (src1 << IMM | src1 >>> (8 - IMM));
+                    if (registerFile[r1] < 0)
+                        statusReg |= 1 << 2; //for Negative flag
+                    if (registerFile[r1] == 0)
+                        statusReg |= 1; //for Zero flag
+                    registerUpdated = true;
+                    changedReg = r1;
                     break;
                 case 9://SRC
-                    registerFile[srcRegister1] = (byte) (registerFile[srcRegister1] >>> IMM | registerFile[srcRegister1] << (8 - IMM));
+                    registerFile[r1] = (byte) (src1 >>> IMM | src1 << (8 - IMM));
+                    if (registerFile[r1] < 0)
+                        statusReg |= 1 << 2; //for Negative flag
+                    if (registerFile[r1] == 0)
+                        statusReg |= 1; //for Zero flag
+                    registerUpdated = true;
+                    changedReg = r1;
                     break;
                 case 10://LB
-                    registerFile[srcRegister1] = dataMemory[IMM];
+                    registerFile[r1] = dataMemory[IMM];
+                    registerUpdated = true;
+                    changedReg = r1;
                     break;
                 case 11://SB
-                    dataMemory[IMM] = registerFile[srcRegister1];
+                    dataMemory[IMM] = src1;
+                    memoryUpdated = true;
+                    changedMem = IMM;
                     break;
             }
-
         }
-
     }
 
-    private static boolean overFlowOccured(byte R1, byte R2, int result) {
+    private static boolean overFlowOccurred(byte R1, byte R2, int result) {
         return (R1 > 0 && R2 > 0 & ((byte) result) < 0)
                 || (R1 < 0 && R2 < 0 & ((byte) result) > 0);
+    }
+
+    private static boolean carryOccurred(byte R1, byte R2, byte Result){
+        boolean beforeLastCarry = ((1 << 7 & R1) ^ (1 << 7 & R2)) != (1 << 7 & Result);
+        if(beforeLastCarry){
+            return (1 << 7 & R1) != 0 || (1 << 7 & R2) != 0;
+        }
+        return (1 << 7 & R1) != 0 && (1 << 7 & R2) != 0;
     }
 
     public static void main(String[] args) {
@@ -177,12 +209,13 @@ public class Simulator {
             System.out.println();
 
             toBeExecutedHashMap = new HashMap<>(decodedInstruction);
+            toBeExecutedOperands = new HashMap<>(decodedOperands);
 
             System.out.print("The instruction being decoded: ");
             if (decodeFlag) {
                 decode();
                 System.out.println(instructionMapping.get(toBeDecoded) + ".");
-                System.out.println("Inputs for decode stage:\n\t Instruction in decimal: " + toBeDecoded);
+                System.out.println("Inputs for decode stage:\n\t Instruction in binary: " + Parser.getBinary(toBeDecoded));
             } else {
                 System.out.println("None.");
             }
@@ -193,22 +226,25 @@ public class Simulator {
                 execute();
                 System.out.println(instructionMapping.get(toBeExecuted) + ".");
                 System.out.println("Inputs for execute stage:\n\t OPCODE: "
-                        + toBeExecutedHashMap.get("OPCODE") + "\n\t R1: "
-                        + toBeExecutedHashMap.get("R1") + "\n\t "
+                        + toBeExecutedHashMap.get("OPCODE") + "\n\t Value of R1: "
+                        + toBeExecutedHashMap.get("R1") + "\n\t R1: R"
+                        + toBeExecutedOperands.get("R1") + "\n\t "
                         + (toBeExecutedHashMap.containsKey("R2") ?
-                        "R2: " + toBeExecutedHashMap.get("R2")
+                        "Value of R2: " + toBeExecutedHashMap.get("R2") + "\n\t R2: R"
+                        + toBeExecutedOperands.get("R2")
                         : "IMM: " + toBeExecutedHashMap.get("IMMEDIATE")));
+                pcOfExecuted++;
             } else {
                 System.out.println("None.");
             }
             System.out.println();
             if(pcChanged) {
                 i = -1;
-                loopLimit = (numOfInstructions - pc ) + 2; //BEQZ is not stable
+                loopLimit = (numOfInstructions - pc ) + 2;
+                fetchFlag = true;
                 decodeFlag = false;
                 executeFlag = false;
                 pcChanged = false;
-                System.out.println("PC = " + pc);
             }
             toBeExecuted = toBeDecoded;
             toBeDecoded = fetched;
@@ -230,10 +266,10 @@ public class Simulator {
 
         System.out.println("Contents of register file: ");
         for (int i = 0; i < registerFile.length; i++) {
-            System.out.println("R" + (i + 1) + ": " + registerFile[i]);
+            System.out.println("R" + (i) + ": " + registerFile[i]);
         }
         System.out.println("PC: " + pc);
-        System.out.println("SREG: " + statusReg);
+        System.out.println("SREG (in binary): " + Parser.getBinary(statusReg));
         System.out.println();
 
         System.out.println("Contents of instruction memory: ");
